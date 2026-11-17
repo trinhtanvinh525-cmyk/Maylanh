@@ -1,0 +1,40 @@
+name: Build NagakawaIR APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Project Files
+        run: |
+          mkdir -p app/src/main/java/com/nagakawa/ir
+          if [ -f "MainActivity.kt" ]; then cp MainActivity.kt app/src/main/java/com/nagakawa/ir/MainActivity.kt; fi
+          printf 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\ndependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\nrootProject.name = "NagakawaIR"\ninclude(":app")\n' > settings.gradle.kts
+          printf 'plugins {\n id("com.android.application") version "8.5.2" apply false\n id("org.jetbrains.kotlin.android") version "1.9.24" apply false\n}\n' > build.gradle.kts
+          printf 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\nandroid.useAndroidX=true\n' > gradle.properties
+          printf 'plugins {\n id("com.android.application")\n id("org.jetbrains.kotlin.android")\n}\nandroid {\n namespace = "com.nagakawa.ir"\n compileSdk = 34\n defaultConfig {\n applicationId = "com.nagakawa.ir"\n minSdk = 24\n targetSdk = 34\n versionCode = 1\n versionName = "1.0"\n }\n compileOptions {\n sourceCompatibility = JavaVersion.VERSION_17\n targetCompatibility = JavaVersion.VERSION_17\n }\n kotlinOptions { jvmTarget = "17" }\n}\ndependencies {}\n' > app/build.gradle.kts
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n <uses-permission android:name="android.permission.TRANSMIT_IR" />\n <uses-feature android:name="android.hardware.consumerir" android:required="false" />\n <application android:allowBackup="true" android:label="Nagakawa IR" android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">\n <activity android:name=".MainActivity" android:exported="true">\n <intent-filter>\n <action android:name="android.intent.action.MAIN" />\n <category android:name="android.intent.category.LAUNCHER" />\n </intent-filter>\n </activity>\n </application>\n</manifest>\n' > app/src/main/AndroidManifest.xml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build Debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NagakawaIR-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          
